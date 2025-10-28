@@ -4,7 +4,9 @@
 
 @layer utilities {
   .scroll-block {
-    transition: filter 320ms ease-in-out, background-color 320ms ease-in-out;
+    transition:
+      filter 320ms ease-in-out,
+      background-color 320ms ease-in-out;
   }
 
   .scroll-block:not(:last-child) {

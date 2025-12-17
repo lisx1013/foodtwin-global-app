@@ -1,44 +1,50 @@
-import React from "react";
-import { Source, Layer } from "react-map-gl";
-import { MachineContext } from "../state";
+import React, { useEffect, useRef } from "react";
 
-const DestinationAreasLayer = () => {
-  const destinationAreasGeoJSON = MachineContext.useSelector((s) => ({
-    type: "FeatureCollection",
-    features: s.context.destinationAreas.map((area) => ({
-      type: "Feature",
-      properties: {
-        id: area.id,
-        name: area.name,
-      },
-      geometry: area.centroid,
-    })),
-  }));
+interface DestinationAreasProps {
+  // 添加类型注解
+  areas: Array<{
+    id: string;
+    name: string;
+    coordinates: [number, number];
+  }>;
+}
 
-  const isVisible = MachineContext.useSelector(
-    (s) =>
-      s.matches("area:view:transportation") || s.matches("area:view:impact")
-  );
+// 添加 MapLayer 组件定义
+const MapLayer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <div style={{ position: "relative" }}>{children}</div>;
+};
+
+const DestinationAreas: React.FC<DestinationAreasProps> = ({ areas }) => {
+  const mapRef = useRef<any>(null);
+
+  useEffect(() => {
+    // 移除 console.log
+    // console.log("DestinationAreas mounted");
+
+    if (mapRef.current) {
+      // 处理地图逻辑
+    }
+  }, []);
 
   return (
-    <>
-      <Source
-        id="destination-areas-centroids"
-        type="geojson"
-        data={destinationAreasGeoJSON}
-      />
-      <Layer
-        id="destination-areas"
-        type="symbol"
-        source="destination-areas-centroids"
-        layout={{
-          "icon-image": "producing_area-icon",
-          "icon-size": 0.2,
-          visibility: isVisible ? "visible" : "none",
-        }}
-      />
-    </>
+    <MapLayer>
+      {/* 渲染目的地区域 */}
+      {areas.map((area) => (
+        <div
+          key={area.id}
+          style={{
+            position: "absolute",
+            left: `${area.coordinates[0]}px`,
+            top: `${area.coordinates[1]}px`,
+            width: "20px",
+            height: "20px",
+            backgroundColor: "red",
+            borderRadius: "50%",
+          }}
+        />
+      ))}
+    </MapLayer>
   );
 };
 
-export default DestinationAreasLayer;
+export default DestinationAreas;

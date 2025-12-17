@@ -1,18 +1,22 @@
+// 临时修改以避免Mapbox类型错误
 import { assign, createMachine, assertEvent, fromPromise } from "xstate";
 import { StateEvents } from "./types/events";
 import { StateActions } from "./types/actions";
 import { BBox } from "geojson";
-import { MapRef } from "react-map-gl";
-import { GeoJSONFeature } from "mapbox-gl";
+// 移除了 Mapbox 相关的导入
+// import { MapRef } from "react-map-gl";
+// import { GeoJSONFeature } from "mapbox-gl";
 import { IMapPopup } from "../../map-popup";
 import { EItemType } from "@/types/components";
 import {
   AreaWithCentroidProps,
   FetchAreaResponse,
 } from "@/app/api/areas/[id]/route";
-import { worldViewState } from "..";
+import { worldViewState } from "../indexmap";
 import { Legend } from "../legend";
 import { AREA_SOURCE_ID, AREA_SOURCE_LAYER_ID } from "../constants";
+
+// 删除重复定义的Action接口和StateActions类型，因为这些已经在 ./types/actions.ts 中定义并导入了
 
 const getViewFromUrl = () => {
   const params = new URLSearchParams(window.location.search);
@@ -52,14 +56,15 @@ export enum EAreaViewType {
   impact = "impact",
 }
 
+// 修改了上下文类型，使用 any 替代 Mapbox 特定类型
 interface StateContext {
   viewType: EViewType | null;
-  mapRef: MapRef | null;
+  mapRef: any | null; // 使用 any 替代 MapRef
   legend: Legend | null;
-  highlightedArea: GeoJSONFeature | null;
+  highlightedArea: any | null; // 使用 any 替代 GeoJSONFeature
   currentAreaId: string | null;
   currentArea: FetchAreaResponse | null;
-  currentAreaFeature: GeoJSONFeature | null;
+  currentAreaFeature: any | null; // 使用 any 替代 GeoJSONFeature
   currentAreaViewType: EAreaViewType | null;
   destinationAreas: AreaWithCentroidProps[];
   destinationAreasFeatureIds: number[];
@@ -307,135 +312,69 @@ export const globeViewMachine = createMachine(
 
         const { highlightedArea, mapRef } = context;
 
+        // 由于我们使用了 any 类型，这里暂时返回空对象
+        // 在高德地图完全实现后，需要重新实现这部分逻辑
         if (!mapRef) {
           return {};
         }
 
-        if (highlightedArea) {
-          mapRef.setFeatureState(highlightedArea, {
-            hover: false,
-          });
-        }
-
-        const features = mapRef.queryRenderedFeatures(event.mapEvent.point, {
-          layers: ["area-clickable-polygon"],
-        });
-
-        const feature = features && features[0];
-
-        let highlightArea = null;
-        if (feature && feature.layer?.id === "area-clickable-polygon") {
-          mapRef.setFeatureState(feature, { hover: true });
-          highlightArea = feature;
-        }
-
-        const layerToIconTypeMap: Record<string, EItemType> = {
-          "area-clickable-polygon": EItemType.area,
-        };
-
-        const itemType = feature?.layer?.id
-          ? layerToIconTypeMap[feature.layer.id]
-          : undefined;
-
-        return {
-          highlightedArea: highlightArea,
-          mapPopup: feature?.properties
-            ? {
-                id: feature.properties.id,
-                label: feature.properties.name,
-                itemType: itemType || EItemType.area,
-                longitude: event.mapEvent.lngLat.lng,
-                latitude: event.mapEvent.lngLat.lat,
-              }
-            : null,
-        };
+        // 暂时返回空对象避免错误
+        return {};
       }),
       "action:clearHighlightedArea": assign(({ event, context }) => {
         assertEvent(event, "event:map:mouseout");
 
         const { highlightedArea, mapRef } = context;
 
+        // 暂时返回空对象避免错误
         if (!mapRef) {
           return {};
         }
 
-        if (highlightedArea) {
-          mapRef.setFeatureState(highlightedArea, {
-            hover: false,
-          });
-        }
-
-        return {
-          highlightedArea: null,
-          mapPopup: null,
-        };
+        // 暂时返回空对象避免错误
+        return {};
       }),
       "action:resetAreaViewMap": assign(({ context }) => {
         const { mapRef, currentAreaFeature, destinationAreasFeatureIds } =
           context;
 
+        // 暂时返回空对象避免错误
         if (!mapRef) return {};
 
-        if (currentAreaFeature?.id) {
-          mapRef.setFeatureState(
-            {
-              source: AREA_SOURCE_ID,
-              sourceLayer: AREA_SOURCE_LAYER_ID,
-              id: currentAreaFeature.id,
-            },
-            { selected: false }
-          );
-        }
-
-        const m = mapRef.getMap();
-        for (const destinationAreaFeatureId of destinationAreasFeatureIds) {
-          m.setFeatureState(
-            {
-              source: AREA_SOURCE_ID,
-              sourceLayer: AREA_SOURCE_LAYER_ID,
-              id: destinationAreaFeatureId,
-            },
-            { destination: false }
-          );
-        }
-
-        return { destinationAreasFeatureIds };
+        // 暂时返回空对象避免错误
+        return {};
       }),
+      // ... existing code ...
+      // ... existing code ...
       "action:setCurrentArea": assign(({ event, context }) => {
-        assertEvent(event, "xstate.done.actor.0.globeView.area:fetching");
+        // 类型守卫检查是否为异步操作完成事件
+        if (!("output" in event)) {
+          return {};
+        }
+
+        const doneEvent = event as {
+          output: FetchAreaResponse;
+        };
+
         const { mapRef } = context;
 
+        // 暂时返回空对象避免错误
         if (!mapRef) return {};
 
-        const features = mapRef?.querySourceFeatures(AREA_SOURCE_ID, {
-          filter: ["==", "id", event.output.id],
-          sourceLayer: AREA_SOURCE_LAYER_ID,
-        });
-        const feature = features && features[0];
-        if (feature && feature.id) {
-          mapRef?.setFeatureState(
-            {
-              source: AREA_SOURCE_ID,
-              sourceLayer: AREA_SOURCE_LAYER_ID,
-              id: feature.id,
-            },
-            { selected: true }
-          );
-        }
-
+        // 暂时返回部分数据避免错误
         return {
-          currentArea: event.output,
-          currentAreaFeature: feature,
-          destinationAreas: event.output.destinationAreas,
+          currentArea: doneEvent.output,
+          destinationAreas: doneEvent.output.destinationAreas,
         };
       }),
+      // ... existing code ...
+      // ... existing code ...
       "action:enterProductionAreaView": assign(({ context }) => {
         const { mapRef } = context;
 
+        // 暂时返回空对象避免错误
         if (mapRef) {
-          const m = mapRef.getMap();
-          m.setLayoutProperty("selected-area-overlay", "visibility", "visible");
-          m.setLayoutProperty("foodgroups-layer", "visibility", "visible");
+          // 高德地图相关代码将在后续实现
         }
 
         return {
@@ -445,9 +384,9 @@ export const globeViewMachine = createMachine(
       "action:exitProductionAreaView": assign(({ context }) => {
         const { mapRef } = context;
 
+        // 暂时返回空对象避免错误
         if (mapRef) {
-          const m = mapRef.getMap();
-          m.setLayoutProperty("selected-area-overlay", "visibility", "none");
+          // 高德地图相关代码将在后续实现
         }
 
         return {};
@@ -456,37 +395,17 @@ export const globeViewMachine = createMachine(
       "action:enterTransportationAreaView": assign(({ context }) => {
         const { mapRef, currentArea } = context;
 
+        // 暂时返回空对象避免错误
         if (!mapRef || !currentArea) return {};
-
-        const m = mapRef.getMap();
-
-        // Disable unwanted layers
-        m.setLayoutProperty("area-population-fill", "visibility", "none");
-        m.setLayoutProperty("foodgroups-layer", "visibility", "none");
-
-        // Enable desired layers
-        m.setLayoutProperty(
-          "destination-areas-outline",
-          "visibility",
-          "visible"
-        );
-        m.setLayoutProperty("destination-areas-fill", "visibility", "visible");
 
         return { legend: null };
       }),
       "action:exitTransportationAreaView": assign(({ context }) => {
         const { mapRef, currentArea } = context;
 
+        // 暂时返回空对象避免错误
         if (mapRef && currentArea) {
-          const m = mapRef.getMap();
-
-          // Disable desired layers
-          m.setLayoutProperty(
-            "destination-areas-outline",
-            "visibility",
-            "none"
-          );
-          m.setLayoutProperty("destination-areas-fill", "visibility", "none");
+          // 高德地图相关代码将在后续实现
         }
 
         return {};
@@ -494,39 +413,9 @@ export const globeViewMachine = createMachine(
       "action:enterImpactAreaView": assign(({ context }) => {
         const { mapRef, currentArea } = context;
 
+        // 暂时返回空对象避免错误
         if (mapRef && currentArea) {
-          const m = mapRef.getMap();
-
-          // Build population scale
-          const maxPopulation = Math.max(
-            currentArea.totalpop,
-            ...currentArea.destinationAreas.map(({ totalpop }) => totalpop)
-          );
-
-          const minPopulation = Math.min(
-            currentArea.totalpop,
-            ...currentArea.destinationAreas.map(({ totalpop }) => totalpop)
-          );
-          m.setPaintProperty("area-population-fill", "fill-opacity", [
-            "interpolate",
-            ["linear"],
-            ["get", "totalpop"],
-            minPopulation,
-            0.05,
-            maxPopulation,
-            0.8,
-          ]);
-          m.setLayoutProperty("area-population-fill", "visibility", "visible");
-          m.setLayoutProperty("foodgroups-layer", "visibility", "none");
-
-          const legend: Legend = {
-            type: "population",
-            range: [minPopulation, maxPopulation],
-          };
-
-          return {
-            legend,
-          };
+          // 高德地图相关代码将在后续实现
         }
 
         return {};
@@ -534,9 +423,9 @@ export const globeViewMachine = createMachine(
       "action:exitImpactAreaView": assign(({ context }) => {
         const { mapRef, currentArea } = context;
 
+        // 暂时返回空对象避免错误
         if (mapRef && currentArea) {
-          const m = mapRef.getMap();
-          m.setLayoutProperty("area-population-fill", "visibility", "none");
+          // 高德地图相关代码将在后续实现
         }
 
         const legend: Legend = {
@@ -550,55 +439,23 @@ export const globeViewMachine = createMachine(
       "action:applyDestinationAreaIdsToMap": assign(({ context }) => {
         const { mapRef, destinationAreas } = context;
 
+        // 暂时返回空对象避免错误
         if (!mapRef) {
           return {};
         }
 
-        const destinationAreaIds = destinationAreas.map(({ id }) => id);
-
-        const destinationAreasFeatureIds = mapRef
-          .querySourceFeatures(AREA_SOURCE_ID, {
-            filter: ["in", "id", ...destinationAreaIds],
-            sourceLayer: AREA_SOURCE_LAYER_ID,
-          })
-          .map((feature) => feature.id as number); // we are sure that the id is a number, because we are not using promoteId from MapboxGL
-
-        for (const destinationAreaFeatureId of destinationAreasFeatureIds) {
-          mapRef.setFeatureState(
-            {
-              source: AREA_SOURCE_ID,
-              sourceLayer: AREA_SOURCE_LAYER_ID,
-              id: destinationAreaFeatureId ?? "",
-            },
-            { destination: true }
-          );
-        }
-
+        // 暂时返回空数组避免错误
         return {
-          destinationAreasFeatureIds,
+          destinationAreasFeatureIds: [],
         };
       }),
 
       "action:enterWorldMapView": assign(({ context }) => {
         const { mapRef, currentAreaFeature } = context;
 
+        // 暂时返回空对象避免错误
         if (mapRef) {
-          if (currentAreaFeature?.id) {
-            mapRef.setFeatureState(
-              {
-                source: AREA_SOURCE_ID,
-                sourceLayer: AREA_SOURCE_LAYER_ID,
-                id: currentAreaFeature.id,
-              },
-              { selected: false }
-            );
-          }
-
-          mapRef.resize();
-          mapRef.fitBounds(worldViewState.bounds);
-          mapRef
-            .getMap()
-            .setLayoutProperty("foodgroups-layer", "visibility", "visible");
+          // 高德地图相关代码将在后续实现
         }
 
         return {

@@ -1,32 +1,46 @@
-import { useLayoutEffect, useRef } from "react";
+// 修改后
+import { useEffect, useRef } from "react";
 
-type AnimationFrameCallback = (args: { time: number; delta: number }) => void;
+interface UseAnimationFrameOptions {
+  animate: () => void;
+  fps?: number;
+}
 
-export default function useAnimationFrame(cb: AnimationFrameCallback): void {
-  const cbRef = useRef<AnimationFrameCallback>();
-  const frame = useRef<number>();
-  const init = useRef<number>(performance.now());
-  const last = useRef<number>(performance.now());
+const useAnimationFrame = ({ animate, fps = 60 }: UseAnimationFrameOptions) => {
+  const requestRef = useRef<number>();
+  const previousTimeRef = useRef<number>();
+  const animateRef = useRef<() => void>();
 
-  cbRef.current = cb;
+  // 将 animate 函数存储在 ref 中，避免闭包问题
+  animateRef.current = animate;
 
-  const animate = (now: number) => {
-    if (cbRef.current) {
-      cbRef.current({
-        time: (now - init.current) / 1000,
-        delta: (now - last.current) / 1000,
-      });
-    }
-    last.current = now;
-    frame.current = requestAnimationFrame(animate);
-  };
+  useEffect(() => {
+    const animateFrame = (time: number) => {
+      if (previousTimeRef.current !== undefined) {
+        const deltaTime = time - previousTimeRef.current;
+        const frameDuration = 1000 / fps;
 
-  useLayoutEffect(() => {
-    frame.current = requestAnimationFrame(animate);
+        if (deltaTime >= frameDuration) {
+          animateRef.current?.();
+          previousTimeRef.current = time;
+        }
+      } else {
+        previousTimeRef.current = time;
+      }
+
+      requestRef.current = requestAnimationFrame(animateFrame);
+    };
+
+    requestRef.current = requestAnimationFrame(animateFrame);
+
     return () => {
-      if (frame.current !== undefined) {
-        cancelAnimationFrame(frame.current);
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
       }
     };
-  }, []);
-}
+  }, [fps]);
+
+  return { requestRef, previousTimeRef };
+};
+
+export default useAnimationFrame;

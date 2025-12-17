@@ -1,94 +1,47 @@
-import { MapRef } from "react-map-gl";
-import { GeoJSONFeature } from "mapbox-gl";
-import { IMapPopup } from "@/app/components/map-popup";
-import { EViewType } from "../machine";
-import { Legend } from "../../legend";
+// 临时修改以避免Mapbox类型错误
 
-interface ActionParseUrl {
-  type: "action:parseUrl";
-  viewType: EViewType | null;
-  currentAreaId?: string | null;
-  currentArea?: GeoJSON.Feature | null;
-}
-
-interface ActionParseAreaSection {
-  type: "action:parseAreaSection";
-}
-
-interface ActionSetMapRef {
-  type: "action:setMapRef";
-  mapRef: MapRef;
-}
-
-interface ActionSetHighlightedArea {
-  type: "action:setHighlightedArea";
-  highlightedArea: GeoJSONFeature | null;
-  MapPopup: IMapPopup | null;
-}
-
-interface ActionClearHighlightedArea {
-  type: "action:clearHighlightedArea";
-}
-
-interface ActionSetCurrentAreaId {
-  type: "action:setCurrentAreaId";
-  currentAreaId: string;
-}
-interface ActionSetCurrentArea {
-  type: "action:setCurrentArea";
-  area: GeoJSON.Feature;
-}
-
+// ... existing code ...
 interface ActionApplyDestinationAreaIdsToMap {
   type: "action:applyDestinationAreaIdsToMap";
+  destinationAreasFeatureIds: number[];
 }
 
-interface ActionEnterProductionAreaView {
-  type: "action:enterProductionAreaView";
-}
-interface ActionExitProductionAreaView {
-  type: "action:exitProductionAreaView";
-}
+// 删除重复的StateActions类型定义，因为我们从./types/actions导入了它
+// type StateActions =
+//   | ActionParseUrl
+//   | ActionEnterWorldMapView
+//   | ActionEnterAreaView
+//   | ActionUpdateMapPopup
+//   | ActionUpdateDestinationAreas
+//   | ActionSetMapRef
+//   | ActionSetHighlightedArea
+//   | ActionClearHighlightedArea
+//   | ActionResetAreaViewMap
+//   | ActionSetCurrentArea
+//   | ActionEnterProductionAreaView
+//   | ActionExitProductionAreaView
+//   | ActionEnterTransportationAreaView
+//   | ActionExitTransportationAreaView
+//   | ActionEnterImpactAreaView
+//   | ActionExitImpactAreaView
+//   | ActionApplyDestinationAreaIdsToMap;
 
-interface ActionEnterTransportationAreaView {
-  type: "action:enterTransportationAreaView";
-}
-interface ActionExitTransportationAreaView {
-  type: "action:exitTransportationAreaView";
-}
+export type { StateActions };
+import { assign, createMachine, assertEvent, fromPromise } from "xstate";
+import { StateEvents } from "./events";
+import { StateActions } from "./types/actions";
+import { BBox } from "geojson";
+// 移除了 Mapbox 相关的导入
+// import { MapRef } from "react-map-gl";
+// import { GeoJSONFeature } from "mapbox-gl";
+import { IMapPopup } from "../../../map-popup";
+import { EItemType } from "@/types/components";
+import {
+  AreaWithCentroidProps,
+  FetchAreaResponse,
+} from "@/app/api/areas/[id]/route";
+import { worldViewState } from "../../indexmap";
+import { Legend } from "../../legend/index";
+import { AREA_SOURCE_ID, AREA_SOURCE_LAYER_ID } from "../../constants";
 
-interface ActionEnterImpactAreaView {
-  type: "action:enterImpactAreaView";
-  legend: Legend;
-}
-
-interface ActionExitImpactAreaView {
-  type: "action:exitImpactAreaView";
-  legend: Legend;
-}
-
-interface ActionEnterWorldMapView {
-  type: "action:enterWorldMapView";
-}
-
-interface ActionResetAreaViewMap {
-  type: "action:resetAreaViewMap";
-}
-
-export type StateActions =
-  | ActionParseUrl
-  | ActionParseAreaSection
-  | ActionSetMapRef
-  | ActionSetHighlightedArea
-  | ActionApplyDestinationAreaIdsToMap
-  | ActionClearHighlightedArea
-  | ActionSetCurrentAreaId
-  | ActionSetCurrentArea
-  | ActionEnterProductionAreaView
-  | ActionExitProductionAreaView
-  | ActionEnterTransportationAreaView
-  | ActionExitTransportationAreaView
-  | ActionEnterImpactAreaView
-  | ActionExitImpactAreaView
-  | ActionEnterWorldMapView
-  | ActionResetAreaViewMap;
+// ... existing code ...

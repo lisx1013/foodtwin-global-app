@@ -49,7 +49,7 @@ function Arc({ title, percentage, width = 144, height = 72 }: IArc) {
       })
       .style("fill", "rgba(255, 149, 113, 1)")
       .attr("d", arc);
-  }, []);
+  }, [height, percentage, width]); // 添加缺失的依赖
 
   return (
     <div className="relative" style={{ width: `${width}px` }}>

@@ -1,12 +1,7 @@
 "use client";
 import React, { useEffect, useCallback, useRef } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import Map, {
-  MapMouseEvent,
-  MapRef,
-  LngLatBoundsLike,
-  Source,
-} from "react-map-gl";
+import dynamic from "next/dynamic";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import MapPopup from "@/app/components/map-popup";
@@ -18,6 +13,21 @@ import AreaLayers from "./layers/areas";
 import { AREA_SOURCE_ID } from "./constants";
 import { EItemType } from "@/types/components";
 import ParticlesLayer from "./layers/particles";
+
+// 动态导入 Map 组件并禁用 SSR
+const Map = dynamic(() => import("react-map-gl").then((mod) => mod.Map), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      Loading map...
+    </div>
+  ),
+});
+
+// 动态导入 Source 组件并禁用 SSR
+const Source = dynamic(() => import("react-map-gl").then((mod) => mod.Source), {
+  ssr: false,
+});
 
 // Environment variables used in this component
 
@@ -31,10 +41,10 @@ export const worldViewState = {
     [170, 80],
   ],
 } as {
-  bounds: LngLatBoundsLike;
+  bounds: any;
 };
 
-function loadIcons(map: mapboxgl.Map) {
+function loadIcons(map: any) {
   const icons = [
     { name: "port-icon", url: "/icons/port.png" },
     { name: "shipping_container-icon", url: "/icons/shipping_container.png" },
@@ -42,7 +52,7 @@ function loadIcons(map: mapboxgl.Map) {
   ];
 
   icons.forEach((icon) => {
-    map.loadImage(icon.url, (error, image) => {
+    map.loadImage(icon.url, (error: any, image: any) => {
       if (error) throw error;
       if (map && image) {
         map.addImage(icon.name, image);
@@ -56,7 +66,7 @@ function GlobeInner() {
   const router = useRouter();
   const pathname = usePathname();
   const actorRef = MachineContext.useActorRef();
-  const mapRef = useRef<MapRef>(null);
+  const mapRef = useRef<any>(null);
 
   // Selectors
   const pageIsMounting = MachineContext.useSelector((s) =>
@@ -76,7 +86,7 @@ function GlobeInner() {
   );
 
   const handleMouseMove = useCallback(
-    (event: MapMouseEvent) => {
+    (event: any) => {
       actorRef.send({
         type: "event:map:mousemove",
         mapEvent: event,
@@ -140,7 +150,7 @@ function GlobeInner() {
     };
   }, [mapRef]);
 
-  const onClick = useCallback((event: MapMouseEvent) => {
+  const onClick = useCallback((event: any) => {
     if (mapRef.current) {
       const features = mapRef.current.queryRenderedFeatures(event.point, {
         layers: ["area-clickable-polygon"],
@@ -155,6 +165,15 @@ function GlobeInner() {
     }
   }, []);
 
+  // 只有在浏览器环境下才渲染地图组件
+  if (typeof window === "undefined") {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        Loading map...
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full relative flex-1 z-10">
       <Legend />
@@ -168,7 +187,7 @@ function GlobeInner() {
         onLoad={() => {
           actorRef.send({
             type: "event:map:mount",
-            mapRef: mapRef.current as MapRef,
+            mapRef: mapRef.current,
           });
 
           const map = mapRef.current?.getMap();
@@ -183,11 +202,13 @@ function GlobeInner() {
         style={{ width: "100%", height: "100%", flex: 1 }}
         mapStyle={mapboxStyleUrl}
       >
-        <Source
-          id={AREA_SOURCE_ID}
-          type="vector"
-          tiles={[`${VECTOR_TILES_URL}/areas/{z}/{x}/{y}.pbf`]}
-        ></Source>
+        {VECTOR_TILES_URL && (
+          <Source
+            id={AREA_SOURCE_ID}
+            type="vector"
+            tiles={[`${VECTOR_TILES_URL}/areas/{z}/{x}/{y}.pbf`]}
+          />
+        )}
 
         <FoodGroupsLayer />
         <AreaLayers />

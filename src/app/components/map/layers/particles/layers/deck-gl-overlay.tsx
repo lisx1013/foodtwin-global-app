@@ -1,6 +1,5 @@
 // 修改后
 import React, { useEffect, useRef } from "react";
-import { MapLayer } from "@react-leaflet/core";
 
 interface DeckGLOverlayProps {
   // 添加类型注解
@@ -26,7 +25,7 @@ const DeckGLOverlay: React.FC<DeckGLOverlayProps> = ({ data }) => {
   }, [data]);
 
   return (
-    <MapLayer>
+    <div>
       {/* 渲染 deck.gl 图层 */}
       {data.map((item) => (
         <div
@@ -42,7 +41,7 @@ const DeckGLOverlay: React.FC<DeckGLOverlayProps> = ({ data }) => {
           }}
         />
       ))}
-    </MapLayer>
+    </div>
   );
 };
 

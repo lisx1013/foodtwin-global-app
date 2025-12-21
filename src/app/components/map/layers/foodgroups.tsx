@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 
 interface FoodGroupsProps {
   // 添加类型注解
-  foodGroups: Array<{
+  foodGroups?: Array<{
     id: string;
     name: string;
     color: string;
@@ -26,18 +26,19 @@ const FoodGroups: React.FC<FoodGroupsProps> = ({ foodGroups }) => {
   return (
     <>
       {/* 渲染食物组 */}
-      {foodGroups.map((group) => (
-        <div
-          key={group.id}
-          style={{
-            position: "absolute",
-            backgroundColor: group.color,
-            width: "10px",
-            height: "10px",
-            borderRadius: "50%",
-          }}
-        />
-      ))}
+      {foodGroups &&
+        foodGroups.map((group) => (
+          <div
+            key={group.id}
+            style={{
+              position: "absolute",
+              backgroundColor: group.color,
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+            }}
+          />
+        ))}
     </>
   );
 };

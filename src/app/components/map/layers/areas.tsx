@@ -113,6 +113,11 @@ export default function ProvinceLayers() {
 
   // 加载高德地图SDK
   useEffect(() => {
+    // 确保只在浏览器环境中执行
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const loadAMapSDK = async () => {
       // **[新增日志]** 检查是否已加载
       if (window.AMap) {
@@ -143,7 +148,7 @@ export default function ProvinceLayers() {
         };
 
         document.body.appendChild(script);
-        console.log("✅ SDK script 标签已插入 DOM"); // **[新增日志]** } catch (error) {
+        console.log("✅ SDK script 标签已插入 DOM"); // **[新增日志]**
       } catch (error) {
         console.error("❌ 加载SDK出错:", error);
       }
@@ -162,6 +167,11 @@ export default function ProvinceLayers() {
 
   // 获取省份数据
   useEffect(() => {
+    // 确保只在浏览器环境中执行
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const fetchProvinces = async () => {
       if (!amapLoaded) {
         console.log("⏳ 等待 AMap SDK 加载完成才能获取省份数据"); // **[新增日志]**
@@ -238,7 +248,9 @@ export default function ProvinceLayers() {
   // 判断点是否在区域内（兼容2.0版本）
   const isPointInArea = useCallback(
     (lng: number, lat: number, areaId: string): boolean => {
-      if (!window.AMap || !lng || !lat) return false;
+      // 确保只在浏览器环境中执行
+      if (typeof window === "undefined" || !window.AMap || !lng || !lat)
+        return false;
 
       const item = polygonsRef.current.get(areaId);
       if (!item) return false;
@@ -315,7 +327,15 @@ export default function ProvinceLayers() {
   // 创建省份多边形
   const createProvincePolygon = useCallback(
     (province: any) => {
-      if (!map || !window.AMap || !province || !province.polyline) return;
+      // 确保只在浏览器环境中执行
+      if (
+        typeof window === "undefined" ||
+        !map ||
+        !window.AMap ||
+        !province ||
+        !province.polyline
+      )
+        return;
 
       // 解析坐标
       const path = parsePolyline(province.polyline);
@@ -360,6 +380,11 @@ export default function ProvinceLayers() {
 
   // 初始化省份多边形
   useEffect(() => {
+    // 确保只在浏览器环境中执行
+    if (typeof window === "undefined") {
+      return;
+    }
+
     if (!map) {
       console.log("⏳ 等待地图实例 (map) 准备就绪..."); // **[新增日志]**
       return;
@@ -415,7 +440,8 @@ export default function ProvinceLayers() {
 
   // 监听区域状态变化更新样式
   useEffect(() => {
-    if (!map || !amapLoaded) return;
+    // 确保只在浏览器环境中执行
+    if (typeof window === "undefined" || !map || !amapLoaded) return;
 
     Array.from(polygonsRef.current.keys()).forEach((areaId) => {
       const isHover = hoveredAreaId.current === areaId;

@@ -3,6 +3,12 @@ import React, { useEffect, useCallback, useRef } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
+if (typeof window !== "undefined") {
+  (window as any)._AMapSecurityConfig = {
+    securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE,
+  };
+}
+
 // 动态导入高德地图组件（禁用SSR）
 const DynamicAPILoader = dynamic(
   () => import("@uiw/react-amap").then((mod) => mod.APILoader),

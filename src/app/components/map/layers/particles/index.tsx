@@ -1,10 +1,12 @@
-// 临时空实现以避免错误
 "use client";
 
 interface ParticlesLayerProps {
   areaId: string;
 }
 
-export default function ParticlesLayer({ areaId }: ParticlesLayerProps) {
+// 通过给 areaId 添加下划线来规避 no-unused-vars 检查
+export default function ParticlesLayer({
+  areaId: _areaId,
+}: ParticlesLayerProps) {
   return null;
 }

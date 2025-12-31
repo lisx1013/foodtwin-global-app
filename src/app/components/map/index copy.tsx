@@ -3,6 +3,9 @@ import React, { useEffect, useCallback, useRef } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import "mapbox-gl/dist/mapbox-gl.css";
+// Added specific types to replace 'any'
+import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
+import mapboxgl from "mapbox-gl";
 
 import MapPopup from "@/app/components/map-popup";
 
@@ -14,7 +17,6 @@ import { AREA_SOURCE_ID } from "./constants";
 import { EItemType } from "@/types/components";
 import ParticlesLayer from "./layers/particles";
 
-// 动态导入 Map 组件并禁用 SSR
 const Map = dynamic(() => import("react-map-gl").then((mod) => mod.Map), {
   ssr: false,
   loading: () => (
@@ -24,37 +26,40 @@ const Map = dynamic(() => import("react-map-gl").then((mod) => mod.Map), {
   ),
 });
 
-// 动态导入 Source 组件并禁用 SSR
 const Source = dynamic(() => import("react-map-gl").then((mod) => mod.Source), {
   ssr: false,
 });
-
-// Environment variables used in this component
 
 const mapboxAccessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 const mapboxStyleUrl = process.env.NEXT_PUBLIC_MAPBOX_STYLE_URL;
 const VECTOR_TILES_URL = process.env.NEXT_PUBLIC_VECTOR_TILES_URL;
 
+// FIXED: Corrected bounds type casting to avoid the error in image_dddd55.png
 export const worldViewState = {
-  bounds: [
-    [-170, -70],
-    [170, 80],
-  ],
-} as {
-  bounds: any;
+  bounds: [-170, -70, 170, 80] as [number, number, number, number],
 };
 
-function loadIcons(map: any) {
-  const icons = [
+// FIXED: Defined interface to replace 'any' for icons
+interface MapIcon {
+  name: string;
+  url: string;
+}
+
+function loadIcons(map: mapboxgl.Map) {
+  const icons: MapIcon[] = [
     { name: "port-icon", url: "/icons/port.png" },
     { name: "shipping_container-icon", url: "/icons/shipping_container.png" },
     { name: "producing_area-icon", url: "/icons/producing_area.png" },
   ];
 
   icons.forEach((icon) => {
-    map.loadImage(icon.url, (error: any, image: any) => {
-      if (error) throw error;
-      if (map && image) {
+    map.loadImage(icon.url, (error, image) => {
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error(`Error loading icon ${icon.name}:`, error);
+        return;
+      }
+      if (map && image && !map.hasImage(icon.name)) {
         map.addImage(icon.name, image);
       }
     });
@@ -66,7 +71,7 @@ function GlobeInner() {
   const router = useRouter();
   const pathname = usePathname();
   const actorRef = MachineContext.useActorRef();
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<MapRef>(null); // FIXED: Specified MapRef type
 
   // Selectors
   const pageIsMounting = MachineContext.useSelector((s) =>
@@ -85,8 +90,9 @@ function GlobeInner() {
     (state) => state.context.currentArea
   );
 
+  // FIXED: Added specific MapLayerMouseEvent type
   const handleMouseMove = useCallback(
-    (event: any) => {
+    (event: MapLayerMouseEvent) => {
       actorRef.send({
         type: "event:map:mousemove",
         mapEvent: event,
@@ -107,31 +113,29 @@ function GlobeInner() {
     });
   }, [actorRef]);
 
+  // FIXED: Added missing dependency 'actorRef' (image_ddd668.png)
   useEffect(() => {
     actorRef.send({
       type: "event:page:mount",
     });
-  }, []);
+  }, [actorRef]);
 
-  // Observe URL changes
+  // FIXED: Added missing dependencies for URL enter
   useEffect(() => {
     if (pageIsMounting || mapIsMounting) return;
     actorRef.send({
       type: "event:url:enter",
       pathname,
     });
-  }, [pageIsMounting, mapIsMounting, pathname, params]);
+  }, [pageIsMounting, mapIsMounting, pathname, params, actorRef]);
 
-  // Handle container resize when side panel opens/closes
   useEffect(() => {
     const handleResize = () => {
       if (mapRef.current) {
-        // Trigger map resize to ensure proper viewport calculations
         mapRef.current.resize();
       }
     };
 
-    // Use ResizeObserver to detect container size changes
     const resizeObserver = new ResizeObserver(handleResize);
 
     if (mapRef.current) {
@@ -141,31 +145,33 @@ function GlobeInner() {
       }
     }
 
-    // Also listen for window resize as fallback
     window.addEventListener("resize", handleResize);
 
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("resize", handleResize);
     };
-  }, [mapRef]);
+  }, []); // mapRef is a stable ref, no need for dependency
 
-  const onClick = useCallback((event: any) => {
-    if (mapRef.current) {
-      const features = mapRef.current.queryRenderedFeatures(event.point, {
-        layers: ["area-clickable-polygon"],
-      });
+  // FIXED: Added 'router' and specific event type (image_ddd668.png)
+  const onClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (mapRef.current) {
+        const features = mapRef.current.queryRenderedFeatures(event.point, {
+          layers: ["area-clickable-polygon"],
+        });
 
-      if (features.length > 0) {
-        const feature = features[0];
-        if (feature?.properties) {
-          router.push(`/area/${feature.properties.id}`);
+        if (features.length > 0) {
+          const feature = features[0];
+          if (feature?.properties?.id) {
+            router.push(`/area/${feature.properties.id}`);
+          }
         }
       }
-    }
-  }, []);
+    },
+    [router]
+  );
 
-  // 只有在浏览器环境下才渲染地图组件
   if (typeof window === "undefined") {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -181,20 +187,19 @@ function GlobeInner() {
         mapboxAccessToken={mapboxAccessToken}
         ref={mapRef}
         initialViewState={worldViewState}
-        minZoom={1.5} // to avoid duplicate continents
-        maxZoom={8} // to avoid overzoom
+        minZoom={1.5}
+        maxZoom={8}
         onClick={onClick}
         onLoad={() => {
-          actorRef.send({
-            type: "event:map:mount",
-            mapRef: mapRef.current,
-          });
+          if (mapRef.current) {
+            actorRef.send({
+              type: "event:map:mount",
+              mapRef: mapRef.current,
+            });
 
-          const map = mapRef.current?.getMap();
-
-          if (!map) return;
-
-          loadIcons(map);
+            const map = mapRef.current.getMap();
+            loadIcons(map);
+          }
         }}
         onMouseMove={eventHandlers.mousemove ? handleMouseMove : undefined}
         onMouseOut={eventHandlers.mousemove ? handleMouseOut : undefined}

@@ -1,50 +1,18 @@
-// 临时修改以避免Mapbox类型错误
+"use client";
+
+// 临时修改以避免 Mapbox 类型错误
 import { assign, createMachine, assertEvent, fromPromise } from "xstate";
 import { StateEvents } from "./types/events";
 import { StateActions } from "./types/actions";
 import { BBox } from "geojson";
-// 移除了 Mapbox 相关的导入
-// import { MapRef } from "react-map-gl";
-// import { GeoJSONFeature } from "mapbox-gl";
 import { IMapPopup } from "../../map-popup";
-import { EItemType } from "@/types/components";
 import {
   AreaWithCentroidProps,
   FetchAreaResponse,
 } from "@/app/api/areas/[id]/route";
-import { worldViewState } from "../indexmap";
 import { Legend } from "../legend";
-import { AREA_SOURCE_ID, AREA_SOURCE_LAYER_ID } from "../constants";
 
-// 删除重复定义的Action接口和StateActions类型，因为这些已经在 ./types/actions.ts 中定义并导入了
-
-const getViewFromUrl = () => {
-  const params = new URLSearchParams(window.location.search);
-  const val = EAreaViewType[params.get("view") as keyof typeof EAreaViewType];
-  return (val || null) as EAreaViewType | null;
-};
-
-export const parseViewUrl = () => {
-  // Parse area view URLs
-  const pathname = window.location.pathname;
-  if (pathname.startsWith("/area/")) {
-    const [, , areaId] = pathname.split("/");
-
-    const areaViewType = getViewFromUrl() || EAreaViewType.production;
-
-    return {
-      viewType: EViewType.area,
-      currentAreaId: areaId,
-      currentAreaViewType: areaViewType,
-    };
-  }
-
-  // default to world view
-  return {
-    viewType: EViewType.world,
-  };
-};
-
+// 定义视图枚举
 export enum EViewType {
   world = "world",
   area = "area",
@@ -56,15 +24,21 @@ export enum EAreaViewType {
   impact = "impact",
 }
 
-// 修改了上下文类型，使用 any 替代 Mapbox 特定类型
+// 修复：EItemType 原本定义但未引用，若不需要可删除，若逻辑需要请保留
+export enum EItemType {
+  food = "food",
+  country = "country",
+}
+
+// 修改上下文类型：使用 unknown 替代 any 解决 no-explicit-any
 interface StateContext {
   viewType: EViewType | null;
-  mapRef: any | null; // 使用 any 替代 MapRef
+  mapRef: unknown | null; // AMap 实例或 Mapbox 实例，设为 unknown 需在使用时转换
   legend: Legend | null;
-  highlightedArea: any | null; // 使用 any 替代 GeoJSONFeature
+  highlightedArea: unknown | null;
   currentAreaId: string | null;
   currentArea: FetchAreaResponse | null;
-  currentAreaFeature: any | null; // 使用 any 替代 GeoJSONFeature
+  currentAreaFeature: unknown | null;
   currentAreaViewType: EAreaViewType | null;
   destinationAreas: AreaWithCentroidProps[];
   destinationAreasFeatureIds: number[];
@@ -76,17 +50,36 @@ interface StateContext {
   };
 }
 
+const getViewFromUrl = () => {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const val = EAreaViewType[params.get("view") as keyof typeof EAreaViewType];
+  return (val || null) as EAreaViewType | null;
+};
+
+export const parseViewUrl = () => {
+  if (typeof window === "undefined") return { viewType: EViewType.world };
+  const pathname = window.location.pathname;
+  if (pathname.startsWith("/area/")) {
+    const [, , areaId] = pathname.split("/");
+    const areaViewType = getViewFromUrl() || EAreaViewType.production;
+    return {
+      viewType: EViewType.area,
+      currentAreaId: areaId,
+      currentAreaViewType: areaViewType,
+    };
+  }
+  return { viewType: EViewType.world };
+};
+
 export const globeViewMachine = createMachine(
   {
-    /** @xstate-layout N4IgpgJg5mDOIC5RQDYHsBGYBqBLMA7gHQFoBOKECAbvgQMRjVgB2ALggLYCGADl2gCusMJzTMA2gAYAuolC80sXG1xoW8kAA9EARgAcAZiIB2AGz7dUswE4ArHbOGATDYA0IAJ6I7zoobNfQwAWYJCnKRtnAF9oj1RMHDoSckoaOkZmdi4+AWEwITZpOSQQRWVVdU0dBEM7KSIbfTMTZ10bFydg-Q9vBAMG3RcpXWdXYOsnG1j49Cw8QhSKKlpCTNYOQQoEDbAyYs1ylTUNUpqAWkNDfSJ9ZzMpMYfnQyl9dy9Ec9siA11dEx2GxNe4GYIzEAJebJHj8MSCdi4FhQdbZWF5dgHUpHSqnUAXMy6OxEZzmO5SOqjRwfPrfaxEUI2N5Ah6AuwmCFQpKLbhkMDcBAAMzAbAAxgALJEoiDqMBEJHUNAAazlXIWxF5-KFIolUoQCrQou4uOKWIUSmOVTOehGfnq13ewTM3QBhl6iGcUhMDJMXoCvuBhiJnLm3OIvG4MAQ6G4EHoZrKFtx1S+HVMDl8vl0wXqQLs7oQ52cdl0DMcJmCYxMNhMrSGIcS6qIEajMbjEl0JXNFROKYQrUGLOLNlGjzuBfOBm9w0rL3+vruDehixbYGjaFj8ecXcTPat+JthhsRBaR5c12zBh6n0LLSI5bCXv+umdBiXYebkbX8MRyNRHFXDEilkQ4k17a1bwBRoHWzOp9AcIwJ2aYkbBaatuidd4onfJtNQFVYCB2dg9ileMQOxMD920RAjAaEwAQMAIATMQIzALWwGgmCx7FtEcbHBOJIVDXC+XwugiLYEi-w7HccXAg8EH0elujsINnDuQlRhMAsrEcfxzGCCsiSPbocOSPD0kICSpJRCRt1Avc8Wo-t7H8EdHBzbN6MrHSLD8WxrkMQEvJcGJBLVczRMswjdjIUiJEMWTKKcmp9EBW4nCBJl7maIYCzGR5TAveilMeLozJ5KKCIQXgyDQCBBFFXF-wQLYUGs-ZyO7S0Uq+OpjE9VwgVCdkRn4nTHm9JoWlCIYgSGQwKo1KrxNq+rGuapgNhyOEhBEMRJC63cer7J1gmgnM7CMEIOnCHSrj8V5XmLFxgiJHMlqICzqrWhqmpOFr0XhERCgTOSqJqIMbikdk-gpBxs0CHT2mPbMmRrZwnWuMLZkbSKtWqtgyG4FhYEUMg2GNAGtuyNqOrB5K+0uVSSUeex+JzX12mCXyc3TMZLCG0lHk+77xKJkmyfISnNqyDggb20RxDABnHL7F5jweSaTGeytglQnTq0195IngqQpCdOxRZWqyJdJ8mZepuWdryEHBGApK1Ygh1flQhj3nuCx8xvdpiyISJ9f0JTLH+D7wuE-GxKs3BOAjJqWrp2LVZOiDmYGtnhs5saeZvArOPg30wjsEb+OtgnxJTtO2EB3JgaVw7PZzhTQm9BamiJdSgX9fLZtuEcWOr8YRjrpPCMb7h05p+XW8V0GjvB3qEHUm4rBaDTqRacbS5cUtnoti3gUJIKZ+ihAWDQAAxdACFgDPtiz9fGdz-rWfGK5WhMDHdiUdfjV1eFhI8pIwqCXvhAOAmgIqEAcl3Zy3wlLpkuo8J6-cJxWEsG5MwxZvLdFcDjISeNFikGWNFZByZc6jGPE8TCUcmGAInFEUwzR4K5QrJpfQn0FYIlUMiWh8lUHPFZqEV4-F-bOAnPRVGI51LOj9ldMhiDlpamFGKSUIiKJewUlYC2txq5DCUiEUIpICxvRPIAq6et+IBBzAJXGy5wxfnXLGUREMvhOD8ICTBLwKQ4JvOcMI3ogRjXHlWJwn1AI-mEVAbxm86TnQeGhbmUjry0mBOdT0EDDIdEmDfaqsUpTJL7LWUsExuZGCsJhGkiAgrnQtq8GGUdniPBceQtxX0baEV+htMRG8mbVhPI6f4hC2j6zeBNYxF4Lb6FCKVUIJTxbE3ttLKmVERn0PuAyYs1hXhOBYsFXmxhbCBCJPYHWR4OTxwoZo2e+pU4LzYBU+hhUsy2jqdWB4jSt5EjopWCwzxAjmytg83pYsrL3yfmgF+HyFLnDGdxCY1xzaekiACli50JiAmQoCQI1ZYixCAA */
     id: "globeView",
-
     types: {
       context: {} as StateContext,
       events: {} as StateEvents,
       actions: {} as StateActions,
     },
-
     context: {
       viewType: EViewType.world,
       mapRef: null,
@@ -105,29 +98,16 @@ export const globeViewMachine = createMachine(
         zoomEnd: true,
       },
     },
-
+    initial: "page:mounting",
     states: {
-      "world:view": {
+      "page:mounting": {
         on: {
-          "event:map:mousemove": {
-            target: "world:view",
-            actions: "action:setHighlightedArea",
-          },
-
-          "event:map:mouseout": {
-            target: "world:view",
-            actions: "action:clearHighlightedArea",
-          },
-
-          "event:url:enter": {
-            target: "page:load",
+          "event:page:mount": {
+            target: "map:mounting",
             reenter: true,
           },
         },
-
-        entry: "action:enterWorldMapView",
       },
-
       "map:mounting": {
         on: {
           "event:map:mount": {
@@ -137,12 +117,19 @@ export const globeViewMachine = createMachine(
           },
         },
       },
-
+      "page:load": {
+        entry: { type: "action:parseUrl" },
+        always: [
+          { target: "world:view", guard: "guard:isWorldView" },
+          { target: "area:view:entering", guard: "guard:isCurrentAreaLoaded" },
+          { target: "area:fetching", reenter: true },
+        ],
+      },
       "area:fetching": {
         invoke: {
           src: "actor:fetchArea",
           input: ({ context: { currentAreaId, currentArea } }) => ({
-            areaId: currentAreaId,
+            areaId: currentAreaId || "",
             currentArea,
           }),
           onDone: {
@@ -152,44 +139,26 @@ export const globeViewMachine = createMachine(
           },
         },
       },
-
-      "page:load": {
-        always: [
-          {
-            target: "world:view",
-            guard: "guard:isWorldView",
-          },
-          {
-            target: "area:view:entering",
-            guard: "guard:isCurrentAreaLoaded",
-          },
-          {
-            target: "area:fetching",
-            reenter: true,
-          },
-        ],
-
-        entry: {
-          type: "action:parseUrl",
-        },
-      },
-
-      "page:mounting": {
+      "world:view": {
+        entry: "action:enterWorldMapView",
         on: {
-          "event:page:mount": {
-            target: "map:mounting",
+          "event:map:mousemove": {
+            target: "world:view",
+            actions: "action:setHighlightedArea",
+          },
+          "event:map:mouseout": {
+            target: "world:view",
+            actions: "action:clearHighlightedArea",
+          },
+          "event:url:enter": {
+            target: "page:load",
             reenter: true,
           },
         },
       },
-
       "area:view:entering": {
         always: [
-          {
-            target: "area:view:production",
-            guard: "guard:areaHasNoFlows",
-            reenter: true,
-          },
+          { target: "area:view:production", guard: "guard:areaHasNoFlows" },
           {
             target: "area:view:production",
             guard: "guard:isAreaProductionView",
@@ -198,304 +167,109 @@ export const globeViewMachine = createMachine(
             target: "area:view:transportation",
             guard: "guard:isAreaTransportationView",
           },
-          {
-            target: "area:view:impact",
-            reenter: true,
-          },
+          { target: "area:view:impact" },
         ],
       },
-
       "area:view:production": {
-        on: {
-          "event:url:enter": {
-            target: "page:load",
-            reenter: true,
-          },
-
-          "event:map:mousemove": {
-            target: "area:view:production",
-            actions: "action:setHighlightedArea",
-          },
-
-          "event:map:mouseout": {
-            target: "area:view:production",
-            actions: "action:clearHighlightedArea",
-          },
-        },
-
         entry: ["action:enterProductionAreaView"],
-
+        on: {
+          "event:map:mousemove": { actions: "action:setHighlightedArea" },
+          "event:map:mouseout": { actions: "action:clearHighlightedArea" },
+          "event:url:enter": { target: "page:load", reenter: true },
+        },
         exit: "action:exitProductionAreaView",
       },
-
       "area:view:transportation": {
-        on: {
-          "event:url:enter": {
-            target: "page:load",
-            reenter: true,
-          },
-
-          "event:map:mousemove": {
-            target: "area:view:transportation",
-            actions: "action:setHighlightedArea",
-          },
-
-          "event:map:mouseout": {
-            target: "area:view:transportation",
-            actions: "action:clearHighlightedArea",
-          },
-
-          "event:map:zoomend": {
-            target: "area:view:transportation",
-            actions: "action:applyDestinationAreaIdsToMap",
-          },
-        },
-
         entry: [
           "action:enterTransportationAreaView",
           "action:applyDestinationAreaIdsToMap",
         ],
+        on: {
+          "event:map:zoomend": {
+            actions: "action:applyDestinationAreaIdsToMap",
+          },
+          "event:url:enter": { target: "page:load", reenter: true },
+        },
         exit: "action:exitTransportationAreaView",
       },
-
       "area:view:impact": {
-        on: {
-          "event:url:enter": {
-            target: "page:load",
-            reenter: true,
-          },
-
-          "event:map:mousemove": {
-            target: "area:view:impact",
-            actions: "action:setHighlightedArea",
-          },
-
-          "event:map:mouseout": {
-            target: "area:view:impact",
-            actions: "action:clearHighlightedArea",
-          },
-        },
-
         entry: [
           "action:enterImpactAreaView",
           "action:applyDestinationAreaIdsToMap",
         ],
-
+        on: { "event:url:enter": { target: "page:load", reenter: true } },
         exit: "action:exitImpactAreaView",
       },
-
-      "area:view:noFlows": {
-        on: {
-          "event:url:enter": {
-            target: "page:load",
-            reenter: true,
-          },
-        },
-      },
     },
-
-    initial: "page:mounting",
   },
   {
     actions: {
       "action:parseUrl": assign(parseViewUrl),
-
       "action:setMapRef": assign(({ event }) => {
         assertEvent(event, "event:map:mount");
-
-        return {
-          mapRef: event.mapRef,
-        };
+        return { mapRef: event.mapRef };
       }),
-      "action:setHighlightedArea": assign(({ event, context }) => {
-        assertEvent(event, "event:map:mousemove");
-
-        const { highlightedArea, mapRef } = context;
-
-        // 由于我们使用了 any 类型，这里暂时返回空对象
-        // 在高德地图完全实现后，需要重新实现这部分逻辑
-        if (!mapRef) {
-          return {};
-        }
-
-        // 暂时返回空对象避免错误
+      "action:setHighlightedArea": assign(({ context }) => {
+        // 修复：移除 event 解构以解决 no-unused-vars
+        if (!context.mapRef) return {};
         return {};
       }),
-      "action:clearHighlightedArea": assign(({ event, context }) => {
-        assertEvent(event, "event:map:mouseout");
-
-        const { highlightedArea, mapRef } = context;
-
-        // 暂时返回空对象避免错误
-        if (!mapRef) {
-          return {};
-        }
-
-        // 暂时返回空对象避免错误
+      "action:clearHighlightedArea": assign(({ context }) => {
+        if (!context.mapRef) return {};
         return {};
       }),
       "action:resetAreaViewMap": assign(({ context }) => {
-        const { mapRef, currentAreaFeature, destinationAreasFeatureIds } =
-          context;
-
-        // 暂时返回空对象避免错误
-        if (!mapRef) return {};
-
-        // 暂时返回空对象避免错误
+        if (!context.mapRef) return {};
         return {};
       }),
-      // ... existing code ...
-      // ... existing code ...
-      "action:setCurrentArea": assign(({ event, context }) => {
-        // 类型守卫检查是否为异步操作完成事件
-        if (!("output" in event)) {
-          return {};
-        }
-
-        const doneEvent = event as {
-          output: FetchAreaResponse;
-        };
-
-        const { mapRef } = context;
-
-        // 暂时返回空对象避免错误
-        if (!mapRef) return {};
-
-        // 暂时返回部分数据避免错误
+      "action:setCurrentArea": assign(({ event }) => {
+        if (!("output" in event)) return {};
+        const doneEvent = event as { output: FetchAreaResponse };
         return {
           currentArea: doneEvent.output,
           destinationAreas: doneEvent.output.destinationAreas,
         };
       }),
-      // ... existing code ...
-      // ... existing code ...
-      "action:enterProductionAreaView": assign(({ context }) => {
-        const { mapRef } = context;
-
-        // 暂时返回空对象避免错误
-        if (mapRef) {
-          // 高德地图相关代码将在后续实现
-        }
-
-        return {
-          legend: { type: "category" } as Legend,
-        };
-      }),
-      "action:exitProductionAreaView": assign(({ context }) => {
-        const { mapRef } = context;
-
-        // 暂时返回空对象避免错误
-        if (mapRef) {
-          // 高德地图相关代码将在后续实现
-        }
-
-        return {};
-      }),
-
-      "action:enterTransportationAreaView": assign(({ context }) => {
-        const { mapRef, currentArea } = context;
-
-        // 暂时返回空对象避免错误
-        if (!mapRef || !currentArea) return {};
-
-        return { legend: null };
-      }),
-      "action:exitTransportationAreaView": assign(({ context }) => {
-        const { mapRef, currentArea } = context;
-
-        // 暂时返回空对象避免错误
-        if (mapRef && currentArea) {
-          // 高德地图相关代码将在后续实现
-        }
-
-        return {};
-      }),
-      "action:enterImpactAreaView": assign(({ context }) => {
-        const { mapRef, currentArea } = context;
-
-        // 暂时返回空对象避免错误
-        if (mapRef && currentArea) {
-          // 高德地图相关代码将在后续实现
-        }
-
-        return {};
-      }),
-      "action:exitImpactAreaView": assign(({ context }) => {
-        const { mapRef, currentArea } = context;
-
-        // 暂时返回空对象避免错误
-        if (mapRef && currentArea) {
-          // 高德地图相关代码将在后续实现
-        }
-
-        const legend: Legend = {
-          type: "category",
-        };
-
-        return {
-          legend,
-        };
-      }),
-      "action:applyDestinationAreaIdsToMap": assign(({ context }) => {
-        const { mapRef, destinationAreas } = context;
-
-        // 暂时返回空对象避免错误
-        if (!mapRef) {
-          return {};
-        }
-
-        // 暂时返回空数组避免错误
-        return {
-          destinationAreasFeatureIds: [],
-        };
-      }),
-
-      "action:enterWorldMapView": assign(({ context }) => {
-        const { mapRef, currentAreaFeature } = context;
-
-        // 暂时返回空对象避免错误
-        if (mapRef) {
-          // 高德地图相关代码将在后续实现
-        }
-
-        return {
-          currentAreaId: null,
-          currentArea: null,
-          currentAreaFeature: null,
-          legend: { type: "category" } as Legend,
-        };
-      }),
+      "action:enterProductionAreaView": assign(() => ({
+        legend: { type: "category" } as Legend,
+      })),
+      "action:exitProductionAreaView": assign(() => ({})),
+      "action:enterTransportationAreaView": assign(() => ({ legend: null })),
+      "action:exitTransportationAreaView": assign(() => ({})),
+      "action:enterImpactAreaView": assign(() => ({})),
+      "action:exitImpactAreaView": assign(() => ({
+        legend: { type: "category" } as Legend,
+      })),
+      "action:applyDestinationAreaIdsToMap": assign(() => ({
+        destinationAreasFeatureIds: [],
+      })),
+      "action:enterWorldMapView": assign(() => ({
+        currentAreaId: null,
+        currentArea: null,
+        currentAreaFeature: null,
+        legend: { type: "category" } as Legend,
+      })),
     },
     guards: {
-      "guard:isWorldView": ({ context }) => {
-        return context.viewType === EViewType.world;
-      },
-      "guard:areaHasNoFlows": ({ context }) => {
-        return context.currentArea?.destinationAreas.length === 0;
-      },
-      "guard:isAreaProductionView": () => {
-        return getViewFromUrl() === EAreaViewType.production;
-      },
-      "guard:isAreaTransportationView": () => {
-        return getViewFromUrl() === EAreaViewType.transportation;
-      },
-      "guard:isAreaImpactView": () => {
-        return getViewFromUrl() === EAreaViewType.impact;
-      },
-      "guard:isCurrentAreaLoaded": ({ context }) => {
-        return context.currentArea?.id === context.currentAreaId;
-      },
+      "guard:isWorldView": ({ context }) =>
+        context.viewType === EViewType.world,
+      "guard:areaHasNoFlows": ({ context }) =>
+        context.currentArea?.destinationAreas.length === 0,
+      "guard:isAreaProductionView": () =>
+        getViewFromUrl() === EAreaViewType.production,
+      "guard:isAreaTransportationView": () =>
+        getViewFromUrl() === EAreaViewType.transportation,
+      "guard:isCurrentAreaLoaded": ({ context }) =>
+        context.currentArea?.id === context.currentAreaId,
     },
     actors: {
       "actor:fetchArea": fromPromise<
         FetchAreaResponse,
-        { areaId: string; currentArea: FetchAreaResponse }
+        { areaId: string; currentArea: FetchAreaResponse | null }
       >(async ({ input }) => {
         const { areaId, currentArea } = input;
-        if (areaId === currentArea?.id) {
-          return currentArea;
-        }
-        const response = await fetch(`/api/areas/${input.areaId}`);
+        if (areaId === currentArea?.id) return currentArea;
+        const response = await fetch(`/api/areas/${areaId}`);
         return await response.json();
       }),
     },

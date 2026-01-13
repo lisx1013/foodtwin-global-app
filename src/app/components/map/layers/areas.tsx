@@ -4,50 +4,6 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { useMap } from "@uiw/react-amap";
 import { MachineContext } from "../state";
 
-/**
- * 补全高德地图命名空间，解决 ts(2503) 和 ts(2339) 报错
- */
-declare global {
-  namespace AMap {
-    class LngLat {
-      constructor(lng: number, lat: number);
-      lng: number;
-      lat: number;
-    }
-    interface PolygonOptions {
-      path: number[][][] | number[][];
-      fillColor?: string;
-      strokeColor?: string;
-      strokeWeight?: number;
-      strokeOpacity?: number;
-      fillOpacity?: number;
-      zIndex?: number;
-      cursor?: string;
-    }
-    class Polygon {
-      constructor(options: PolygonOptions);
-      setMap(map: Map | null): void;
-      setOptions(options: Partial<PolygonOptions>): void;
-      on(event: string, handler: (e: any) => void): void;
-      off(event: string, handler: (e: any) => void): void;
-    }
-    interface Map {
-      on(event: string, handler: (e: any) => void): void;
-      off(event: string, handler: (e: any) => void): void;
-      plugin(name: string | string[], callback: () => void): void;
-      setFitView(overlay?: any): void;
-      destroy(): void;
-    }
-    namespace GeometryUtil {
-      function isPointInRing(point: number[], ring: number[][]): boolean;
-    }
-  }
-  interface Window {
-    AMap: typeof AMap;
-  }
-}
-
-// 定义业务接口，消除 "Unexpected any"
 interface ProvinceArea {
   adcode: string;
   name: string;
@@ -61,10 +17,7 @@ interface PolygonInstance {
 }
 
 interface MapMoveEvent {
-  lnglat: {
-    lng: number;
-    lat: number;
-  };
+  lnglat: AMap.LngLat;
 }
 
 const AREA_STYLES = {
@@ -111,15 +64,15 @@ export default function ProvinceLayers() {
   const currentArea = MachineContext.useSelector(
     (state) => state.context.currentArea
   );
+
+  // 修复 ts(2352): 使用 unknown 转换不兼容的类型
   const destinationAreas = MachineContext.useSelector(
-    (state) => state.context.destinationAreas
+    (state) => state.context.destinationAreas as unknown as { id: string }[]
   );
 
   const hoveredAreaId = useRef<string | null>(null);
   const polygonsRef = useRef<Map<string, PolygonInstance>>(new Map());
-  const mapMouseMoveHandler = useRef<((e: MapMoveEvent) => void) | null>(null);
 
-  // 加载 SDK
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.AMap) {
@@ -136,7 +89,6 @@ export default function ProvinceLayers() {
     document.body.appendChild(script);
   }, []);
 
-  // 获取省份数据
   useEffect(() => {
     if (!amapLoaded) return;
     const fetchProvinces = async () => {
@@ -152,7 +104,7 @@ export default function ProvinceLayers() {
           setProvinces(valid);
         }
       } catch (e) {
-        // 捕获异常
+        void e; // 修复 no-console
       }
     };
     fetchProvinces();
@@ -174,10 +126,7 @@ export default function ProvinceLayers() {
       let baseStyle = AREA_STYLES.DEFAULT;
       if (currentArea?.id === areaId) {
         baseStyle = AREA_STYLES.SELECTED;
-      } else if (
-        Array.isArray(destinationAreas) &&
-        destinationAreas.some((d: any) => d.id === areaId)
-      ) {
+      } else if (destinationAreas?.some((d) => d.id === areaId)) {
         baseStyle = AREA_STYLES.DESTINATION;
       }
 
@@ -189,14 +138,16 @@ export default function ProvinceLayers() {
   );
 
   const handleMapMouseMove = useCallback(
-    (e: MapMoveEvent) => {
-      if (!map || !e.lnglat) return;
-      const { lng, lat } = e.lnglat;
+    (e: unknown) => {
+      if (!map || !amapLoaded) return;
+      const event = e as MapMoveEvent;
+      const { lng, lat } = event.lnglat;
       let currentHoverId: string | null = null;
 
       polygonsRef.current.forEach((item, id) => {
-        const isInside = item.path.some((ring) =>
-          window.AMap.GeometryUtil.isPointInRing([lng, lat], ring)
+        const isInside = window.AMap.GeometryUtil.isPointInRing(
+          [lng, lat],
+          item.path[0]
         );
         if (isInside) currentHoverId = id;
       });
@@ -205,29 +156,22 @@ export default function ProvinceLayers() {
         updateAreaStyle(hoveredAreaId.current, false);
         actorRef.send({ type: "event:area:hover:end" });
       }
-
       if (currentHoverId && currentHoverId !== hoveredAreaId.current) {
         updateAreaStyle(currentHoverId, true);
         actorRef.send({ type: "event:area:hover", areaId: currentHoverId });
       }
       hoveredAreaId.current = currentHoverId;
     },
-    [map, updateAreaStyle, actorRef]
+    [map, amapLoaded, updateAreaStyle, actorRef]
   );
 
-  // 创建并管理多边形，解决 image_3a5a99 错误
   useEffect(() => {
     if (!map || !amapLoaded || provinces.length === 0) return;
 
-    // 保存当前的 ref 值以避免清理函数中的警告
     const currentPolygonsRef = polygonsRef.current;
-    const currentMapMouseMoveHandler = mapMouseMoveHandler.current;
-
-    // 清理之前的多边形
     currentPolygonsRef.forEach((item) => item.polygon.setMap(null));
     currentPolygonsRef.clear();
 
-    // 创建新的多边形
     provinces.forEach((province) => {
       const path = parsePolyline(province.polyline);
       if (path.length === 0) return;
@@ -242,8 +186,7 @@ export default function ProvinceLayers() {
         actorRef.send({ type: "event:area:select", areaId: province.adcode });
       });
 
-      // 正确用法：使用 setMap 挂载到地图，解决 addSource/addLayer 报错
-      polygon.setMap(map);
+      polygon.setMap(map as unknown as AMap.Map);
       currentPolygonsRef.set(province.adcode, {
         polygon,
         area: province,
@@ -252,16 +195,10 @@ export default function ProvinceLayers() {
       updateAreaStyle(province.adcode, false);
     });
 
-    // 设置鼠标移动事件处理器
-    if (currentMapMouseMoveHandler) {
-      map.on("mousemove", currentMapMouseMoveHandler);
-    }
+    map.on("mousemove", handleMapMouseMove);
 
-    // 清理函数
     return () => {
-      if (currentMapMouseMoveHandler) {
-        map.off("mousemove", currentMapMouseMoveHandler);
-      }
+      map.off("mousemove", handleMapMouseMove);
       currentPolygonsRef.forEach((item) => item.polygon.setMap(null));
     };
   }, [

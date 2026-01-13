@@ -1,47 +1,41 @@
-// 临时修改以避免Mapbox类型错误
+"use client";
 
-// ... existing code ...
-interface ActionApplyDestinationAreaIdsToMap {
+import { FetchAreaResponse } from "@/app/api/areas/[id]/route";
+
+/**
+ * 修复 image_be760c.jpg 中的错误：
+ * 移除所有定义但未使用的 import（如 assign, createMachine, BBox 等）
+ */
+
+export interface ActionApplyDestinationAreaIdsToMap {
   type: "action:applyDestinationAreaIdsToMap";
   destinationAreasFeatureIds: number[];
 }
 
-// 删除重复的StateActions类型定义，因为我们从./types/actions导入了它
-// type StateActions =
-//   | ActionParseUrl
-//   | ActionEnterWorldMapView
-//   | ActionEnterAreaView
-//   | ActionUpdateMapPopup
-//   | ActionUpdateDestinationAreas
-//   | ActionSetMapRef
-//   | ActionSetHighlightedArea
-//   | ActionClearHighlightedArea
-//   | ActionResetAreaViewMap
-//   | ActionSetCurrentArea
-//   | ActionEnterProductionAreaView
-//   | ActionExitProductionAreaView
-//   | ActionEnterTransportationAreaView
-//   | ActionExitTransportationAreaView
-//   | ActionEnterImpactAreaView
-//   | ActionExitImpactAreaView
-//   | ActionApplyDestinationAreaIdsToMap;
+// 补充缺失的 Action 接口定义，确保 StateActions 完整
+export interface ActionSetCurrentArea {
+  type: "action:setCurrentArea";
+  output: FetchAreaResponse;
+}
 
-export type { StateActions };
-import { assign, createMachine, assertEvent, fromPromise } from "xstate";
-import { StateEvents } from "./events";
-import { StateActions } from "./types/actions";
-import { BBox } from "geojson";
-// 移除了 Mapbox 相关的导入
-// import { MapRef } from "react-map-gl";
-// import { GeoJSONFeature } from "mapbox-gl";
-import { IMapPopup } from "../../../map-popup";
-import { EItemType } from "@/types/components";
-import {
-  AreaWithCentroidProps,
-  FetchAreaResponse,
-} from "@/app/api/areas/[id]/route";
-import { worldViewState } from "../../indexmap";
-import { Legend } from "../../legend/index";
-import { AREA_SOURCE_ID, AREA_SOURCE_LAYER_ID } from "../../constants";
+// ... 根据 machine.ts 的需求继续补充其他接口 ...
 
-// ... existing code ...
+/**
+ * 统一导出 StateActions
+ * 解决 image_be760c.jpg 中重复定义或未使用的问题
+ */
+export type StateActions =
+  | ActionApplyDestinationAreaIdsToMap
+  | ActionSetCurrentArea
+  | { type: "action:parseUrl" }
+  | { type: "action:enterWorldMapView" }
+  | { type: "action:setMapRef"; mapRef: unknown } // 使用 unknown 代替 any
+  | { type: "action:setHighlightedArea" }
+  | { type: "action:clearHighlightedArea" }
+  | { type: "action:resetAreaViewMap" }
+  | { type: "action:enterProductionAreaView" }
+  | { type: "action:exitProductionAreaView" }
+  | { type: "action:enterTransportationAreaView" }
+  | { type: "action:exitTransportationAreaView" }
+  | { type: "action:enterImpactAreaView" }
+  | { type: "action:exitImpactAreaView" };

@@ -4,12 +4,10 @@ import React, { useEffect, useRef } from "react";
 
 /**
  * 1. 定义具体的区域接口
- * 解决 @typescript-eslint/array-type: 使用 T[] 替代 Array<T>
  */
 interface AreaItem {
   id: string;
   name: string;
-  // 确保坐标类型为固定长度的元组，解决 ts(2352) 报错
   coordinates: [number, number];
 }
 
@@ -17,31 +15,23 @@ interface DestinationAreasProps {
   areas: AreaItem[];
 }
 
-// 全局 AMap 类型定义，解决 AMap.Bounds 等类型缺失的问题
-declare global {
-  namespace AMap {
-    interface Bounds {
-      getSouthWest(): LngLat;
-      getNorthEast(): LngLat;
-      contains(point: LngLat): boolean;
-    }
-    interface LngLat {
-      lng: number;
-      lat: number;
-    }
-  }
-}
+/**
+ * 2. 修复 "A record is preferred over an index signature"
+ * 修复 "Unexpected any"
+ * 使用 Record<string, unknown> 代替 {[key: string]: any}
+ */
+type AMapEvent = Record<string, unknown>;
 
 /**
- * 2. 补全高德地图 Map 类型定义
- * 解决 ts(2339) "Map 上不存在属性" 的一系列报错
+ * 3. 修复 "AMapInstance is defined but never used"
+ * 直接合并并使用 AMapInstanceFixed，并移除未使用的接口定义
  */
-interface AMapInstance {
-  setFitView: (overlay?: any) => void;
+interface AMapInstanceFixed {
+  setFitView: (overlay?: unknown) => void;
   destroy: () => void;
   plugin: (name: string | string[], callback: () => void) => void;
-  on: (event: string, handler: (e: any) => void) => void;
-  off: (event: string, handler: (e: any) => void) => void;
+  on: (event: string, handler: (e: AMapEvent) => void) => void;
+  off: (event: string, handler: (e: AMapEvent) => void) => void;
 }
 
 // MapLayer 组件定义
@@ -54,32 +44,30 @@ const MapLayer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const DestinationAreas: React.FC<DestinationAreasProps> = ({ areas }) => {
-  // 3. 明确 Ref 类型，解决 "Unexpected any" 报错
-  const mapRef = useRef<AMapInstance | null>(null);
+  // 使用修复后的接口类型
+  const mapRef = useRef<AMapInstanceFixed | null>(null);
 
   useEffect(() => {
-    // 移除 console.log 满足 no-console 规范
+    // 保持逻辑不变，如果需要使用 mapRef，可以在此处编写
     if (mapRef.current) {
-      // 在此处安全地调用地图方法，如 mapRef.current.setFitView();
+      // example: mapRef.current.setFitView();
     }
-  }, [areas]); // 建议添加 areas 作为依赖以响应数据变化
+  }, [areas]);
 
   return (
     <MapLayer>
-      {/* 渲染目的地区域 */}
       {areas.map((area) => (
         <div
           key={area.id}
           style={{
             position: "absolute",
-            // 使用数组索引访问，确保类型安全
             left: `${area.coordinates[0]}px`,
             top: `${area.coordinates[1]}px`,
             width: "20px",
             height: "20px",
             backgroundColor: "red",
             borderRadius: "50%",
-            transform: "translate(-50%, -50%)", // 居中修正
+            transform: "translate(-50%, -50%)",
             pointerEvents: "none",
           }}
           title={area.name}

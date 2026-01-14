@@ -1,3 +1,4 @@
+"use client";
 import Menu from "../components/menu";
 import Map from "../components/map";
 import WelcomeModal from "./welcome-modal";

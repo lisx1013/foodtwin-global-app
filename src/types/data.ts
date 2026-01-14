@@ -1,3 +1,4 @@
+"use client";
 import { MultiLineString, Position } from "geojson";
 import { EItemType } from "./components";
 import { Color } from "@deck.gl/core";

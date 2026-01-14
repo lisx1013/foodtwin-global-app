@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useState } from "react";
 import { IResult } from "@/types/data";
 import { useDebounce } from "@/utils/hooks";

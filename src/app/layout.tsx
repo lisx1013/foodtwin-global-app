@@ -1,3 +1,4 @@
+"use client";
 import { NextUIProvider } from "@nextui-org/react";
 import PlausibleProvider from "next-plausible";
 import { Lexend_Exa, Merriweather } from "next/font/google";

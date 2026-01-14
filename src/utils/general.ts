@@ -1,3 +1,4 @@
+"use client";
 import { FoodGroupColors } from "../../tailwind.config";
 
 export const hexToRgba = (

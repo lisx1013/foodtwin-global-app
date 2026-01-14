@@ -1,3 +1,4 @@
+"use client";
 export enum EItemType {
   area = "area",
   route = "route",

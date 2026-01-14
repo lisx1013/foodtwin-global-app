@@ -1,3 +1,4 @@
+"use client";
 import { PageHeaderSkeleton } from "@/app/components/page-header";
 import Layout from "./layout";
 import { PageSection } from "@/app/components/page-section";

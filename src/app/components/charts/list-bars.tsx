@@ -1,3 +1,4 @@
+"use client";
 import { formatKeyIndicator } from "@/utils/numbers";
 import { useMemo } from "react";
 

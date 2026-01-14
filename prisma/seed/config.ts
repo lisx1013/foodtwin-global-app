@@ -1,3 +1,4 @@
+"use client";
 import path from "path";
 
 export const POSTGRES_CONNECTION_STRING = process.env.DATABASE_URL;

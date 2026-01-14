@@ -1,3 +1,4 @@
+"use client";
 import TypeIcon from "@/app/components/icons/type-icon";
 import { EItemType } from "@/types/components";
 import { IResult } from "@/types/data";

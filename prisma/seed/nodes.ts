@@ -1,3 +1,4 @@
+"use client";
 import { PrismaClient } from "@prisma/client";
 import { log, runOgr2Ogr } from "./utils";
 import {

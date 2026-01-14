@@ -1,3 +1,4 @@
+"use client";
 import { Edge, PrismaClient } from "@prisma/client";
 
 /**

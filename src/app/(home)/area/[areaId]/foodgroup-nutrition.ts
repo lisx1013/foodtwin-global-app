@@ -1,3 +1,4 @@
+"use client";
 const foodgroupNutrition = {
   "14": {
     fbs_item_code: 2543,

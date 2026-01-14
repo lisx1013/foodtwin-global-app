@@ -1,3 +1,4 @@
+"use client";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import PageHeader from "@/app/components/page-header";

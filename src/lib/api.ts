@@ -1,3 +1,4 @@
+"use client";
 import axios from "axios";
 
 // --- 定义类型接口以消除 any ---

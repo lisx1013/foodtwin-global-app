@@ -1,4 +1,4 @@
-// 修改后
+"use client";
 import { useEffect, useRef } from "react";
 
 interface UseAnimationFrameOptions {

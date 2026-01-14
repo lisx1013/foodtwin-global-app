@@ -1,3 +1,4 @@
+"use client";
 import { execa } from "execa";
 import { PrismaClient } from "@prisma/client";
 import { log } from "./utils";

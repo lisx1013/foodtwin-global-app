@@ -1,3 +1,4 @@
+"use client";
 function Node() {
   return (
     <svg

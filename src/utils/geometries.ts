@@ -1,3 +1,4 @@
+"use client";
 import { BBox } from "geojson";
 
 export function combineBboxes(bboxes: BBox[]): BBox {

@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import { X } from "@phosphor-icons/react/dist/ssr";
 

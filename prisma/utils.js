@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
+"use client";
 const readline = require("readline");
 
 const askQuestion = (question) => {

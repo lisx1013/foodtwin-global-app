@@ -1,3 +1,4 @@
+"use client";
 import fs from "fs-extra";
 import path from "path";
 import { parse } from "csv-parse";

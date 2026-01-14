@@ -1,3 +1,4 @@
+"use client";
 import request from "@/utils/request";
 
 // 1. 服务状态检查

@@ -1,4 +1,4 @@
-// Deleted:import { Popup } from "react-map-gl";
+"use client";
 import { EItemType } from "@/types/components";
 import TypeIcon from "./icons/type-icon";
 import "./css/popup.css";

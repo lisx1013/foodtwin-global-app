@@ -1,3 +1,4 @@
+"use client";
 import fs from "fs-extra";
 import path from "path";
 import { INGEST_LOGS_PATH } from "../config";

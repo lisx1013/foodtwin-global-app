@@ -1,3 +1,4 @@
+"use client";
 import { EItemType } from "@/types/components";
 import Area from "./area";
 import Node from "./node";

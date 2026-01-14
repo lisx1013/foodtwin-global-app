@@ -1,3 +1,4 @@
+"use client";
 import React, { AnchorHTMLAttributes, ReactNode } from "react";
 import { Button } from "@nextui-org/react";
 import Link from "next/link";

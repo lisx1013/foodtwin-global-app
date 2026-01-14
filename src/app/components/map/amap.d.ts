@@ -1,5 +1,4 @@
-// src/app/components/map/amap.d.ts
-
+"use client";
 declare namespace AMap {
   /** 经纬度对象 */
   export class LngLat {

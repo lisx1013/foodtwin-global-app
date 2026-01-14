@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-
+"use client";
 import fs from "fs";
 import { PrismaClient } from "@prisma/client";
 

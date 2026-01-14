@@ -1,3 +1,4 @@
+"use client";
 import { LineString, MultiLineString } from "geojson";
 
 export function splitLineAtAntimeridian(line: LineString): MultiLineString {

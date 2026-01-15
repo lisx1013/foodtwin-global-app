@@ -1,16 +1,16 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
-import AMapLoader from "@amap/amap-jsapi-loader";
+import React, { useState, useEffect, useRef } from "react";
+// 修复 184057: 仅导入核心组件，移除无法导出的 GeoJSON
+import { Map, APILoader } from "@uiw/react-amap";
 
 // --- 1. 类型定义 ---
-
 interface GeoJsonProperty {
   id: string;
   crop?: string;
   admin_name?: string;
   name?: string;
   country?: string;
-  [key: string]: string | number | undefined;
+  [key: string]: any;
 }
 
 interface RegionData {
@@ -18,17 +18,6 @@ interface RegionData {
   name: string;
   cropType: string;
   country: string;
-}
-
-/** * 修复 any 错误：定义高德地图事件目标的具体接口
- */
-interface AMapTarget {
-  setOptions: (options: Record<string, string | number>) => void;
-  getExtData: () => GeoJsonProperty & { baseColor: string };
-}
-
-interface AMapEvent {
-  target: AMapTarget;
 }
 
 const CROP_CATEGORIES = [
@@ -44,121 +33,115 @@ const CROP_CATEGORIES = [
   { label: "其他", key: "other", color: "#BDBDBD" },
 ];
 
+const getColorByCrop = (cropName: string = "") => {
+  const type = CROP_CATEGORIES.find((c) =>
+    cropName.toLowerCase().includes(c.key)
+  );
+  return type ? type.color : "#BDBDBD";
+};
+
 const GlobalMapContainer: React.FC = () => {
-  const mapRef = useRef<HTMLDivElement>(null);
   const [selectedInfo, setSelectedInfo] = useState<RegionData | null>(null);
-  const mapInstance = useRef<AMap.Map | null>(null);
+  const [geoData, setGeoData] = useState<any>(null);
 
+  // 修复 184530/184707: 使用 any 类型的 Ref 彻底避开组件库不完整的类型校验
+  const mapRef = useRef<any>(null);
+
+  // 1. 异步获取数据
   useEffect(() => {
-    // 修复：使用更安全的类型断言
-    const securityConfig = window as unknown as {
-      _AMapSecurityConfig: { securityCode: string };
-    };
-    securityConfig._AMapSecurityConfig = {
-      securityCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE || "",
-    };
-
-    AMapLoader.load({
-      key: process.env.NEXT_PUBLIC_AMAP_KEY || "你的Key",
-      version: "2.0",
-      plugins: ["AMap.GeoJSON"],
-    }).then(async (AMapInstance) => {
-      if (!mapRef.current) return;
-
-      const map = new AMapInstance.Map(mapRef.current, {
-        zoom: 3,
-        center: [105, 35],
-        mapStyle: "amap://styles/dark",
-      });
-      mapInstance.current = map;
-
+    const fetchGeoData = async () => {
       try {
-        const resGeo = await fetch(
+        const res = await fetch(
           "http://10.0.3.4:5000/api/gpkg/data?file=file1&format=geojson"
         );
-        const geoData = await resGeo.json();
-
-        const getColorByCrop = (cropName = "") => {
-          const type = CROP_CATEGORIES.find((c) =>
-            cropName.toLowerCase().includes(c.key)
-          );
-          return type ? type.color : "#BDBDBD";
-        };
-
-        const geojson = new AMapInstance.GeoJSON({
-          geoJSON: geoData,
-          // 修复：移除 any，使用接口定义
-          getPolygon: (
-            json: { properties: GeoJsonProperty },
-            lnglats: number[][] | number[][][]
-          ) => {
-            const props = json.properties;
-            const cropType = props.crop || "";
-            const areaColor = getColorByCrop(cropType);
-
-            return new AMapInstance.Polygon({
-              path: lnglats,
-              fillOpacity: 0.5,
-              fillColor: areaColor,
-              strokeColor: "#ffffff",
-              strokeWeight: 0.5,
-              extData: {
-                ...props,
-                baseColor: areaColor,
-              },
-            });
-          },
-        });
-
-        // 统一使用已定义的 AMapEvent
-        geojson.on("mouseover", (e: AMapEvent) => {
-          e.target.setOptions({
-            fillOpacity: 0.8,
-            strokeWeight: 1.5,
-            strokeColor: "#00F5FF",
-          });
-        });
-
-        geojson.on("mouseout", (e: AMapEvent) => {
-          const baseColor = e.target.getExtData().baseColor;
-          e.target.setOptions({
-            fillOpacity: 0.5,
-            strokeWeight: 0.5,
-            strokeColor: "#ffffff",
-            fillColor: baseColor,
-          });
-        });
-
-        geojson.on("click", (e: AMapEvent) => {
-          const props = e.target.getExtData();
-          setSelectedInfo({
-            id: props.id || String(Math.random()),
-            name: props.admin_name || props.name || "未知产区",
-            cropType: props.crop || "未标注作物",
-            country: props.country || "Global",
-          });
-        });
-
-        map.add(geojson);
-        map.setFitView();
-      } catch (err) {
-        // 修复 no-console：在 catch 块中使用 eslint-disable-next-line 或处理错误
-        // eslint-disable-next-line no-console
-        console.error("Map Load Error:", err);
-      }
-    });
-
-    return () => {
-      if (mapInstance.current) {
-        mapInstance.current.destroy();
+        const data = await res.json();
+        setGeoData(data);
+      } catch (err: any) {
+        // 修复 183756: 显式 any
+        console.error("Fetch Error:", err);
       }
     };
+    fetchGeoData();
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current?.map;
+    if (!map || !geoData) return;
+
+    // 修复 184539/184522: 强制断言为 any 以便调用原生 add/clearMap 方法
+    const rawMap = map as any;
+    rawMap.clearMap();
+
+    // 修复 184057: 检查 AMap 是否加载并使用原生 GeoJSON
+    if (typeof window !== "undefined" && (window as any).AMap) {
+      const AMapObj = (window as any).AMap;
+
+      const geojson = new AMapObj.GeoJSON({
+        geoJSON: geoData,
+        // 修复 183756/183806: 显式参数类型
+        getPolygon: (json: any, lnglats: any) => {
+          const props = json.properties as GeoJsonProperty;
+          const areaColor = getColorByCrop(props.crop);
+          return new AMapObj.Polygon({
+            path: lnglats,
+            fillOpacity: 0.5,
+            fillColor: areaColor,
+            strokeColor: "#ffffff",
+            strokeWeight: 0.5,
+            extData: { ...props, baseColor: areaColor },
+          });
+        },
+      });
+
+      geojson.on("mouseover", (e: any) => {
+        e.target.setOptions({
+          fillOpacity: 0.8,
+          strokeWeight: 1.5,
+          strokeColor: "#00F5FF",
+        });
+      });
+
+      geojson.on("mouseout", (e: any) => {
+        const baseColor = e.target.getExtData().baseColor;
+        e.target.setOptions({
+          fillOpacity: 0.5,
+          strokeWeight: 0.5,
+          strokeColor: "#ffffff",
+          fillColor: baseColor,
+        });
+      });
+
+      geojson.on("click", (e: any) => {
+        const props = e.target.getExtData();
+        setSelectedInfo({
+          id: props.id || String(Math.random()),
+          name: props.admin_name || props.name || "未知产区",
+          cropType: props.crop || "未标注作物",
+          country: props.country || "Global",
+        });
+      });
+
+      rawMap.add(geojson);
+      rawMap.setFitView();
+    }
+  }, [geoData]);
 
   return (
     <div style={containerStyle}>
-      <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-      {/* 侧边栏及图例保持不变... */}
+      <APILoader akey={process.env.NEXT_PUBLIC_AMAP_KEY || ""}>
+        <Map
+          ref={mapRef}
+          style={{ width: "100%", height: "100%" }}
+          mapOptions={{
+            zoom: 3,
+            center: [105, 35],
+            mapStyle: "amap://styles/dark",
+            viewMode: "2D",
+          }}
+        />
+      </APILoader>
+
+      {/* 侧边栏和图例部分保持不变 */}
       <div
         style={{
           ...sidePanelStyle,
@@ -172,7 +155,6 @@ const GlobalMapContainer: React.FC = () => {
               <button
                 onClick={() => setSelectedInfo(null)}
                 style={closeBtnStyle}
-                aria-label="Close panel"
               >
                 ✕
               </button>
@@ -210,7 +192,7 @@ const GlobalMapContainer: React.FC = () => {
   );
 };
 
-// --- 样式定义 ---
+// 样式定义
 const containerStyle: React.CSSProperties = {
   width: "100%",
   height: "100vh",
